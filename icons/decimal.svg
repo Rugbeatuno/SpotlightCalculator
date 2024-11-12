@@ -1,0 +1,10 @@
+<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+  <!-- Zero -->
+  <text x="0" y="32" font-family="Arial" font-size="32" fill="black">0</text>
+
+  <!-- Decimal point -->
+  <circle cx="20" cy="29" r="3" fill="black"/>
+
+  <!-- Variable 'x' -->
+  <text x="23" y="32" font-family="Arial" font-size="32" fill="black">x</text>
+</svg>
