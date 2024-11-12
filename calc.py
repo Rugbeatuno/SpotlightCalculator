@@ -115,8 +115,8 @@ def cvt_constants(expression):
         right = expression[index+1]
 
         if char == 'e' and left != 'd' and right != 'g' and left != 's' and right != 'c':
-            expression = f'{expression[:index]}({math.e}){
-                expression[index+1:]}'
+            expression = f'''{expression[:index]}({math.e}){
+                expression[index+1:]}'''
 
     # expression = expression.replace('pi', math.pi)
     return expression
@@ -142,8 +142,8 @@ def insert_parenthesis_around_trig(expression):
         for func in trig_functions:
             seek = expression[i-len(func):i]
             if seek == func and expression[last_operation_index] != '(':
-                parenthesis = f'({
-                    expression[i-len(func) + len(func):last_operation_index]}'
+                parenthesis = f'''({
+                    expression[i-len(func) + len(func):last_operation_index]}'''
 
                 if last_operation_index != len(expression) - 1:
                     parenthesis += ')'
@@ -248,6 +248,7 @@ def evaluate_expression(expression, variables=None):
     # catch unclosed parenthess
     expression = catch_unclosed_parenthesis(expression)
 
+    # print(expression)
     result = eval(expression, {"__builtins__": None}, conversions)
     result = rounded_with_ellipsis(result)
 

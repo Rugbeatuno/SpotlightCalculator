@@ -31,6 +31,21 @@ ANSWER_CONTAINER_BORDER_COLOR = 'rgba(123, 123, 123, 255)'
 CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 
 
+def prettify_equation(equation):
+    # square roots
+    def square_root(eq):
+        index = eq.index('sqrt')
+        print(equation, equation[index:])
+    square_root(equation)
+    equation = re.sub(
+        r'sqrt\((.*?)\)', r'√<span style="text-decoration: overline;">\1</span>', equation)
+
+    equation = equation.replace('*', '·')
+    equation = equation.replace('/', '÷')  # Replace '/' with '÷' for division
+
+    return equation
+
+
 def get_resource_path(filename):
     return os.path.join(CURRENT_DIRECTORY, filename)
 
@@ -90,8 +105,10 @@ class MyWindow(QMainWindow):
 
         self.container = QWidget(self)
         self.container.setStyleSheet(
-            f"background-color: {CONTAINER_COLOR}; border-radius: 25px; border: 1px solid {
-                CONTAINER_BORDER_COLOR}"
+            f'''background-color: {CONTAINER_COLOR};
+            border-radius: 25px;
+            border: 1px solid {
+                CONTAINER_BORDER_COLOR};'''
         )
         self.container.resize(WIDTH, HEIGHT)
 
@@ -118,7 +135,7 @@ class MyWindow(QMainWindow):
         self.textbox.textChanged.connect(self.recalculate)
         self.textbox.setFont(QFont("Roboto", 30))
         self.textbox.setStyleSheet(
-            f'color: white; border: none; font-weight: 200; background: transparent;')
+            f'''color: white; border: none; font-weight: 200; background: transparent;''')
 
         # dividing line
         self.line = QtWidgets.QFrame(self.container)
@@ -133,8 +150,11 @@ class MyWindow(QMainWindow):
         self.answer_container.resize(
             self.container.width() - PADDING * 2, ANSWER_CONTAINER_HEIGHT)
         self.answer_container.setStyleSheet(
-            f"background-color: {
-                ANSWER_CONTAINER_COLOR}; border-radius: 20px; border: 3px solid {ANSWER_CONTAINER_BORDER_COLOR};"
+            f'''background-color: {
+                ANSWER_CONTAINER_COLOR};
+            border-radius: 20px;
+            border: 3px solid {ANSWER_CONTAINER_BORDER_COLOR};
+            '''
         )
 
         # Label for the equation (in smaller font and lighter color)
@@ -159,7 +179,7 @@ class MyWindow(QMainWindow):
             get_resource_path('./icons/fraction.svg')))
         self.cvt_btn.setIconSize(QtCore.QSize(icon_size, icon_size))
         self.cvt_btn.setStyleSheet(
-            f"border-radius: 25px; background: {ANSWER_CONTAINER_BORDER_COLOR}")
+            f'''border-radius: 25px; background: {ANSWER_CONTAINER_BORDER_COLOR}''')
         self.cvt_btn.clicked.connect(self.toggle_decimal_mode)
         self.cvt_btn.hide()
 
@@ -172,7 +192,7 @@ class MyWindow(QMainWindow):
         self.ans.setIcon(QtGui.QIcon(get_resource_path('./icons/answer.svg')))
         self.ans.setIconSize(QtCore.QSize(icon_size, icon_size))
         self.ans.setStyleSheet(
-            f"border-radius: 25px; background: {ANSWER_CONTAINER_BORDER_COLOR}")
+            f'''border-radius: 25px; background: {ANSWER_CONTAINER_BORDER_COLOR}''')
         self.ans.clicked.connect(self.use_answer)
         self.ans.hide()
 
@@ -216,7 +236,7 @@ class MyWindow(QMainWindow):
         if text:
             try:
                 self.equation_label.setText(
-                    f"{text} =")
+                    f"{prettify_equation(text)} =")
 
                 variables = None
                 if self.ans_value:
