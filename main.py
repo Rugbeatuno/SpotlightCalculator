@@ -34,7 +34,18 @@ CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 def prettify_equation(equation):
     # square roots
     def square_root(eq):
-        index = eq.index('sqrt')
+        start = eq.index('sqrt') + 4
+        if eq[start] == '(':
+            p_count = 1
+            for i in range(start + 1, len(eq)):
+                if eq[i] == '(':
+                    p_count += 1
+                if eq[i] == ')':
+                    p_count -= 1
+
+                if p_count == 0:
+                    end =
+
         print(equation, equation[index:])
     square_root(equation)
     equation = re.sub(
