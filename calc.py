@@ -3,7 +3,7 @@ import math
 digits = '0123456789'
 operations = '()+-/*'
 trig_functions = ['sin', 'cos', 'tan', 'arcsin',
-                  'arccos', 'arctan', 'sqrt', 'ln', 'log', 'sec', 'cot', 'csc']
+                  'arccos', 'arctan', 'sqrt', 'ln', 'log', 'sec', 'cot', 'csc', '√']
 
 
 def cot(x):
@@ -214,13 +214,23 @@ def rounded_with_ellipsis(number, tolerance=1e-12):
     return number
 
 
-def evaluate_expression(expression, variables=None):
+def cvt_cleanup(expression):
     expression = expression.strip()
     expression = expression.replace(' ', '')
+    expression = expression.replace(',', '')
     expression = expression.replace('"', '')
     expression = expression.replace("'", '')
+    expression = expression.replace('√', 'sqrt')
+    expression = expression.replace('π', 'pi')
+    return expression
+
+
+def evaluate_expression(expression, variables=None):
+
     # print(expression)
     result = ''
+
+    expression = cvt_cleanup(expression)
 
     if variables:
         expression = cvt_variables(expression, variables)

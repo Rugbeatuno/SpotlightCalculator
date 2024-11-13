@@ -3,7 +3,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import pygetwindow as gw  # For bringing the window into focus
 import keyboard  # For detecting hotkeys
 import pyperclip
-from calc import evaluate_expression
+from calc import evaluate_expression, operations
 import sys
 from PyQt5.QtCore import Qt, QPoint
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLineEdit, QPushButton, QLabel, QWidget
@@ -12,6 +12,7 @@ from PyQt5 import QtWidgets
 import os
 from PyQt5.QtCore import Qt
 import math
+from math import sqrt
 import re
 from fractions import Fraction
 
@@ -32,27 +33,70 @@ CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 
 
 def prettify_equation(equation):
+    equation = equation.replace('√', 'sqrt')
+    equation = equation.replace(',', '')
     # square roots
+
     def square_root(eq):
-        start = eq.index('sqrt') + 4
-        if eq[start] == '(':
+        start = eq.find('sqrt')
+        if eq[start + 4] == '(':
             p_count = 1
-            for i in range(start + 1, len(eq)):
+            for i in range(start + 5, len(eq)):
                 if eq[i] == '(':
                     p_count += 1
                 if eq[i] == ')':
                     p_count -= 1
 
                 if p_count == 0:
-                    end =
+                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 5: i]}</span>{eq[i + 1:]}'''
 
-        print(equation, equation[index:])
-    square_root(equation)
-    equation = re.sub(
-        r'sqrt\((.*?)\)', r'√<span style="text-decoration: overline;">\1</span>', equation)
+                if i == len(eq) - 1:
+                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 5: i+1]}</span>{eq[i+1:]}'''
+        else:
+            for i in range(start + 4, len(eq)):
+                if eq[i] in operations:
+                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 4: i]}</span>{eq[i:]}'''
+                if i == len(eq) - 1:
+                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 4: i + 1]}</span>{eq[i+1:]}'''
 
-    equation = equation.replace('*', '·')
-    equation = equation.replace('/', '÷')  # Replace '/' with '÷' for division
+    def power(eq):
+        start = eq.find('^')
+        if eq[start + 1] == '(':
+            p_count = 1
+            for i in range(start + 2, len(eq)):
+                if eq[i] == '(':
+                    p_count += 1
+                if eq[i] == ')':
+                    p_count -= 1
+
+                if p_count == 0:
+                    return f'''{eq[:start]}<sup>{eq[start + 2: i]}</sup>{eq[i + 1:]}'''
+
+                if i == len(eq) - 1:
+                    return f'''{eq[:start]}<sup>{eq[start + 2: i+1]}</sup>{eq[i+1:]}'''
+        else:
+            for i in range(start + 1, len(eq)):
+                if eq[i] in operations:
+                    return f'''{eq[:start]}<sup>{eq[start + 1: i]}</sup>{eq[i:]}'''
+                if i == len(eq) - 1:
+                    return f'''{eq[:start]}<sup>{eq[start + 1: i + 1]}</sup>{eq[i+1:]}'''
+
+    while equation.find('sqrt') != -1:
+        equation = square_root(equation)
+
+    while equation.find('^') != -1:
+        equation = power(equation)
+
+    equation = equation.replace('*', '•')
+
+    # Replace '/' with '÷' for division, but replace /span with something else so it isnt cooked
+    equation = equation.replace('/span', '!span')
+    equation = equation.replace('/sup', '!sup')
+    equation = equation.replace('/', '÷')  # Replace '/' with '÷' for division,
+    equation = equation.replace('!span', '/span')
+    equation = equation.replace('!sup', '/sup')
+    equation = equation.replace('deg', '°')
+    equation = equation.replace('pi', 'π')
 
     return equation
 
@@ -67,7 +111,7 @@ def get_textbox_dimenssions(textbox):
     return width, height
 
 
-def format_result(result, decimal_mode):
+def format_result(result, decimal_mode, inputted_equation):
     if str(result) == 'Undefined':
         return 'Undefined'
 
@@ -76,6 +120,58 @@ def format_result(result, decimal_mode):
 
     def is_whole(x):
         return not x % 1
+
+    # if π or e are in the equations and in fraction mode, display as fractions of π or e
+    if not decimal_mode and ('π' in inputted_equation or 'pi' in inputted_equation):
+        fraction = str(Fraction(result / math.pi).limit_denominator())
+        parts = fraction.split('/')
+        return f'''{fraction}π''' if len(parts) == 1 else f'''{parts[0]}π/{parts[1]}'''
+
+    trig_approximations = {
+        0: "0",
+        0.5: "1/2",
+        sqrt(2)/2: "√2/2",
+        sqrt(3)/2: "√3/2",
+        1: "1",
+        sqrt(3): "√3",
+        1/sqrt(3): "1/√3",
+        -0.5: "-1/2",
+        -sqrt(2)/2: "-√2/2",
+        -sqrt(3)/2: "-√3/2",
+        -1: "-1",
+        -sqrt(3): "-√3",
+        -1/sqrt(3): "-1/√3",
+        # Used for undefined cases like sec(90°), csc(0°), etc.
+        16331239353195370: "∞",
+        -16331239353195370: "-∞",
+    }
+
+    # Additional tangent, cotangent, secant, and cosecant specific values
+    tan_cot_approximations = {
+        0: "0",
+        sqrt(3)/3: "√3/3",
+        1: "1",
+        sqrt(3): "√3",
+        -sqrt(3)/3: "-√3/3",
+        -1: "-1",
+        -sqrt(3): "-√3",
+    }
+
+    sec_csc_approximations = {
+        1: "1",
+        2: "2",
+        sqrt(2): "√2",
+        2/sqrt(3): "2/√3",
+        -1: "-1",
+        -2: "-2",
+        -sqrt(2): "-√2",
+        -2/sqrt(3): "-2/√3",
+    }
+
+    if not decimal_mode:
+        for key, value in (trig_approximations | tan_cot_approximations | sec_csc_approximations).items():
+            if abs(result - float(key)) < 1e-10:
+                return value
 
     # if integer return w/o decimal but w/ commas
     integer = is_whole(result)
@@ -90,9 +186,6 @@ def format_result(result, decimal_mode):
     # large numbers e20, small e10
     if result > 1e20 or (result < 1e-10 and result > 0) or result < -1e20 or (result > -1e-10 and result < 0):
         formatted = f"{result:.10e}"
-
-    if result == 0:
-        return '0'
 
     return formatted
 
@@ -257,7 +350,7 @@ class MyWindow(QMainWindow):
                 self.b1.setIcon(QtGui.QIcon(
                     get_resource_path('./icons/copy.svg')))
                 self.result_label.setText(
-                    format_result(self.result, self.decimal_mode))
+                    format_result(self.result, self.decimal_mode, self.textbox.text()))
                 self.setFixedHeight(EQUATION_INPUT_HEIGHT +
                                     ANSWER_CONTAINER_HEIGHT + PADDING * 2 + 1)
                 self.b1.show()
