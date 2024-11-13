@@ -35,6 +35,7 @@ CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 def prettify_equation(equation):
     equation = equation.replace('√', 'sqrt')
     equation = equation.replace(',', '')
+    equation = equation.replace('**', '^')
 
     operations = "+-*/^!()"
 
