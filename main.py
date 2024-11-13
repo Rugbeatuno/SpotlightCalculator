@@ -35,10 +35,15 @@ CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 def prettify_equation(equation):
     equation = equation.replace('√', 'sqrt')
     equation = equation.replace(',', '')
-    # square roots
 
+    operations = "+-*/^!()"
+
+    # square roots
     def square_root(eq):
         start = eq.find('sqrt')
+        if start == -1:
+            return eq
+
         if eq[start + 4] == '(':
             p_count = 1
             for i in range(start + 5, len(eq)):
@@ -48,19 +53,33 @@ def prettify_equation(equation):
                     p_count -= 1
 
                 if p_count == 0:
-                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 5: i]}</span>{eq[i + 1:]}'''
+                    eq = eq.replace(
+                        f'''sqrt({eq[start + 5: i]})''', f'''√<span style=\"text-decoration: overline;\">{eq[start + 5: i]}</span>''')
+                    return eq
 
                 if i == len(eq) - 1:
-                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 5: i+1]}</span>{eq[i+1:]}'''
+                    eq = eq.replace(
+                        f'''sqrt({eq[start + 5:]})''', f'''√<span style=\"text-decoration: overline;\">{eq[start + 5:]}</span>''')
+                    return eq
         else:
             for i in range(start + 4, len(eq)):
-                if eq[i] in operations:
-                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 4: i]}</span>{eq[i:]}'''
-                if i == len(eq) - 1:
-                    return f'''{eq[:start]}√<span style="text-decoration: overline;">{eq[start + 4: i + 1]}</span>{eq[i+1:]}'''
+                if eq[i] in operations or eq[i] in '<':
+                    eq = eq.replace(
+                        f'''sqrt{eq[start + 4: i]}{eq[i]}''', f'''√<span style=\"text-decoration: overline;\">{eq[start + 4:i]}{eq[i]}</span>''')
+                    return eq
 
+                if i == len(eq) - 1:
+                    eq = eq.replace(
+                        f'''sqrt{eq[start + 4:]}''', f'''√<span style=\"text-decoration: overline;\">{eq[start + 4:]}</span>''')
+                    return eq
+        return eq
+
+    # powers
     def power(eq):
         start = eq.find('^')
+        if start == -1:
+            return eq
+
         if eq[start + 1] == '(':
             p_count = 1
             for i in range(start + 2, len(eq)):
@@ -70,31 +89,42 @@ def prettify_equation(equation):
                     p_count -= 1
 
                 if p_count == 0:
-                    return f'''{eq[:start]}<sup>{eq[start + 2: i]}</sup>{eq[i + 1:]}'''
+                    eq = eq.replace(
+                        f'''^({eq[start + 2: i]})''', f'''<sup>{eq[start + 2: i]}</sup>''')
+                    return eq
 
                 if i == len(eq) - 1:
-                    return f'''{eq[:start]}<sup>{eq[start + 2: i+1]}</sup>{eq[i+1:]}'''
+                    eq = eq.replace(
+                        f'''^({eq[start + 2:]}''', f'''<sup>{eq[start + 2:]}</sup>''')
+                    return eq
         else:
             for i in range(start + 1, len(eq)):
-                if eq[i] in operations:
-                    return f'''{eq[:start]}<sup>{eq[start + 1: i]}</sup>{eq[i:]}'''
+                if eq[i] in operations or eq[i] in '<':
+                    eq = eq.replace(
+                        f'''^{eq[start + 1: i]}''', f'''<sup>{eq[start + 1: i]}</sup>''')
+                    return eq
+
                 if i == len(eq) - 1:
-                    return f'''{eq[:start]}<sup>{eq[start + 1: i + 1]}</sup>{eq[i+1:]}'''
+                    eq = eq.replace(
+                        f'''^{eq[start + 1:]}''', f'''<sup>{eq[start + 1:]}</sup>''')
+                    return eq
+        return eq
 
-    while equation.find('sqrt') != -1:
+    # Apply square root and power formatting iteratively
+    while 'sqrt' in equation:
         equation = square_root(equation)
+        print(equation, 1)
 
-    while equation.find('^') != -1:
+    while '^' in equation:
         equation = power(equation)
+        print(equation, 2)
 
     equation = equation.replace('*', '•')
-
-    # Replace '/' with '÷' for division, but replace /span with something else so it isnt cooked
-    equation = equation.replace('/span', '!span')
-    equation = equation.replace('/sup', '!sup')
-    equation = equation.replace('/', '÷')  # Replace '/' with '÷' for division,
-    equation = equation.replace('!span', '/span')
-    equation = equation.replace('!sup', '/sup')
+    equation = equation.replace('</span>', '<!span>')
+    equation = equation.replace('</sup>', '<!sup>')
+    equation = equation.replace('/', '÷')
+    equation = equation.replace('<!span>', '</span>')
+    equation = equation.replace('<!sup>', '</sup>')
     equation = equation.replace('deg', '°')
     equation = equation.replace('pi', 'π')
 
@@ -122,10 +152,28 @@ def format_result(result, decimal_mode, inputted_equation):
         return not x % 1
 
     # if π or e are in the equations and in fraction mode, display as fractions of π or e
+    # i know shit hits the fan if pi and e are in the same expression
     if not decimal_mode and ('π' in inputted_equation or 'pi' in inputted_equation):
         fraction = str(Fraction(result / math.pi).limit_denominator())
         parts = fraction.split('/')
-        return f'''{fraction}π''' if len(parts) == 1 else f'''{parts[0]}π/{parts[1]}'''
+        if len(parts) == 1:
+            return f'''{fraction}π'''
+        else:
+            if parts[0] == 1:
+                return f'''π/{parts[1]}'''
+            return f'''{parts[0]}π/{parts[1]}'''
+
+    without_deg = inputted_equation.replace('deg', '')
+    without_deg = without_deg.replace('sec', '')
+    if not decimal_mode and 'e' in without_deg:
+        fraction = str(Fraction(result / math.e).limit_denominator())
+        parts = fraction.split('/')
+        if len(parts) == 1:
+            return f'''{fraction}e'''
+        else:
+            if parts[0] == 1:
+                return f'''e/{parts[1]}'''
+            return f'''{parts[0]}e/{parts[1]}'''
 
     trig_approximations = {
         0: "0",
@@ -169,7 +217,7 @@ def format_result(result, decimal_mode, inputted_equation):
     }
 
     if not decimal_mode:
-        for key, value in (trig_approximations | tan_cot_approximations | sec_csc_approximations).items():
+        for key, value in {**trig_approximations, **tan_cot_approximations, **sec_csc_approximations}.items():
             if abs(result - float(key)) < 1e-10:
                 return value
 
@@ -418,15 +466,21 @@ class MyWindow(QMainWindow):
 
 
 def window():
-    app = QApplication(sys.argv)
+    try:
+        app = QApplication(sys.argv)
 
-    _id = QtGui.QFontDatabase.addApplicationFont('./Roboto/Roboto-Regular.ttf')
+        _id = QtGui.QFontDatabase.addApplicationFont(
+            './Roboto/Roboto-Regular.ttf')
 
-    win = MyWindow()
-    win.show()
-    keyboard.add_hotkey(
-        'windows+space', lambda: win.toggle_window_visibility())
-    sys.exit(app.exec_())
+        win = MyWindow()
+        win.show()
+        keyboard.add_hotkey(
+            'windows+space', lambda: win.toggle_window_visibility())
+        sys.exit(app.exec_())
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == '__main__':
