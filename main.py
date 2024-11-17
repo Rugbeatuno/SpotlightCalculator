@@ -36,6 +36,7 @@ def prettify_equation(equation):
     equation = equation.replace('√', 'sqrt')
     equation = equation.replace(',', '')
     equation = catch_unclosed_parenthesis(equation)
+    equation = equation.replace('**', '^')
 
     operations = "+-*/^!()"
 
