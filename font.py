@@ -1,86 +1,92 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QGridLayout, QLabel
+from PyQt5.QtWidgets import QApplication
+import pyqtgraph as pg
+import numpy as np
+from calc import evaluate_expression, format_equation, conversions
+import time
+
+# Initialize the application
+app = QApplication(sys.argv)
+
+# Create a window
+win = pg.GraphicsLayoutWidget(
+    show=True, title="Cartesian Plane with Tick Marks on Graph")
+win.resize(800, 600)
+win.setWindowTitle("PyQtGraph Cartesian Plane with Tick Marks")
+
+# Add a plot with equal scaling for X and Y axes
+plot = win.addPlot(title="Click to Select a Point")
+plot.setAspectLocked(lock=True)  # Lock aspect ratio to 1:1
+plot.showGrid(x=True, y=True)    # Enable the grid
+
+# Set a range for the Cartesian plane
+plot.setXRange(-10, 10)
+plot.setYRange(-10, 10)
+
+# Add the X and Y axes intersecting at the origin
+plot.addLine(x=0, pen=pg.mkPen('k'))  # Y-axis
+plot.addLine(y=0, pen=pg.mkPen('k'))  # X-axis
+
+# Add tick marks directly on the axes
+tick_length = 0.2
+tick_pen = pg.mkPen('k', width=2)
+
+# Generate tick positions and draw them on the graph
+for i in range(-10, 11):  # X-axis ticks
+    if i != 0:  # Skip the origin
+        plot.addItem(pg.InfiniteLine(pos=(i, 0), angle=90, pen=tick_pen))
+for i in range(-10, 11):  # Y-axis ticks
+    if i != 0:  # Skip the origin
+        plot.addItem(pg.InfiniteLine(pos=(0, i), angle=0, pen=tick_pen))
 
 
-class CalculatorApp(QWidget):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Simple Calculator")
-        self.setGeometry(100, 100, 300, 400)  # (x, y, width, height)
-
-        layout = QVBoxLayout()
-
-        # Create a label to display the calculator input and result
-        self.display_label = QLabel("0", self)
-        layout.addWidget(self.display_label)
-
-        # Create a layout for the buttons
-        button_layout = QGridLayout()
-
-        # Create buttons for numbers 0-9
-        for i in range(10):
-            button = QPushButton(str(i), self)
-            button.clicked.connect(
-                lambda checked, num=i: self.on_digit_clicked(num))
-            if i == 0:
-                button_layout.addWidget(button, 3, 1)
-            else:
-                button_layout.addWidget(button, (9 - i) // 3, (i - 1) % 3)
-
-        # Create buttons for operators (+, -, *, /)
-        operators = ["+", "-", "*", "/"]
-        for operator in operators:
-            button = QPushButton(operator, self)
-            button.clicked.connect(
-                lambda checked, op=operator: self.on_operator_clicked(op))
-            button_layout.addWidget(button, operators.index(operator), 3)
-
-        # Create a button for equals (=)
-        equals_button = QPushButton("=", self)
-        equals_button.clicked.connect(self.calculate_result)
-        button_layout.addWidget(equals_button, 3, 2)
-
-        # Create a clear button (C)
-        clear_button = QPushButton("C", self)
-        clear_button.clicked.connect(self.clear_input)
-        button_layout.addWidget(clear_button, 3, 0)
-
-        layout.addLayout(button_layout)
-
-        self.setLayout(layout)
-
-        self.current_input = ""
-
-    def on_digit_clicked(self, digit):
-        self.current_input += str(digit)
-        self.display_label.setText(self.current_input)
-
-    def on_operator_clicked(self, operator):
-        if self.current_input and self.current_input[-1] not in ["+", "-", "*", "/"]:
-            self.current_input += operator
-            self.display_label.setText(self.current_input)
-
-    def calculate_result(self):
-        try:
-            result = eval(self.current_input)
-            self.display_label.setText(str(result))
-            self.current_input = str(result)
-        except Exception:
-            self.display_label.setText("Error")
-            self.current_input = ""
-
-    def clear_input(self):
-        self.current_input = ""
-        self.display_label.setText("0")
+scatter = pg.ScatterPlotItem(size=10, brush='b')
+plot.addItem(scatter)
 
 
-def main():
-    app = QApplication(sys.argv)
-    window = CalculatorApp()
-    window.show()
-    sys.exit(app.exec_())
+def calculate_points(plot, equation):
+    s = time.perf_counter()
+    resolution = 1000
+    x_range, _ = plot.getViewBox().viewRange()
+    x_points = np.linspace(x_range[0], x_range[1], resolution)
+    str_eqution = format_equation(equation, variables={'x': 'x'})
+    c = {**conversions, **{'x': x_points}}
+    print(c)
+    result = eval(str_eqution, {'x': x_points})
+    print(result)
+    y_points = [evaluate_expression(equation, variables={
+        'x': i
+    }) for i in x_points]
+
+    print(time.perf_counter() - s)
+    curve = plot.plot(x_points, y_points, pen=pg.mkPen(
+        color=(105, 174, 196), width=3), name="Sine Wave")
 
 
+calculate_points(plot, '10x')
+
+
+def on_mouse_click(event):
+    if plot.sceneBoundingRect().contains(event.scenePos()):
+        mouse_point = plot.vb.mapSceneToView(event.scenePos())
+        clicked_x = mouse_point.x()
+        clicked_y = mouse_point.y()
+
+        # Find the closest data point
+        idx = (np.abs(x - clicked_x)).argmin()
+        closest_x = x[idx]
+        closest_y = y[idx]
+
+        # Update scatter plot with the selected point
+        scatter.setData([closest_x], [closest_y])
+
+        # Print the selected point
+        print(f"Selected Point: x={closest_x}, y={closest_y}")
+
+
+# Connect the click event
+plot.scene().sigMouseClicked.connect(on_mouse_click)
+
+# Run the application
 if __name__ == "__main__":
-    main()
+    sys.exit(app.exec_())

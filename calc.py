@@ -35,9 +35,9 @@ conversions = {
     "ln": math.log,
     "log2": math.log2,
     "sqrt": math.sqrt,
-    "pi": math.pi,
-    "e": math.e,
-    '!': math.factorial
+    # "pi": math.pi,
+    # "e": math.e,
+    # '!': math.factorial
 
 }
 
@@ -225,11 +225,7 @@ def cvt_cleanup(expression):
     return expression
 
 
-def evaluate_expression(expression, variables=None):
-
-    # print(expression)
-    result = ''
-
+def format_equation(expression, variables=None):
     expression = cvt_cleanup(expression)
 
     if variables:
@@ -258,8 +254,17 @@ def evaluate_expression(expression, variables=None):
     # catch unclosed parenthess
     expression = catch_unclosed_parenthesis(expression)
 
+    return expression
+
+
+def evaluate_expression(expression, variables=None):
+
     # print(expression)
-    result = eval(expression, {"__builtins__": None}, conversions)
+    result = ''
+    expression = format_equation(expression, variables)
+
+    # print(expression)
+    result = eval(expression, conversions)
     result = rounded_with_ellipsis(result)
 
     return result

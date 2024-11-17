@@ -3,7 +3,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import pygetwindow as gw  # For bringing the window into focus
 import keyboard  # For detecting hotkeys
 import pyperclip
-from calc import evaluate_expression, operations
+from calc import evaluate_expression, operations, catch_unclosed_parenthesis
 import sys
 from PyQt5.QtCore import Qt, QPoint
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLineEdit, QPushButton, QLabel, QWidget
@@ -18,7 +18,7 @@ from fractions import Fraction
 
 CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 WIDTH = 800
-HEIGHT = 205
+HEIGHT = 500
 PADDING = 20
 EQUATION_INPUT_HEIGHT = 65
 EQUATION_INPUT_PADDING = 65
@@ -35,6 +35,7 @@ CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 def prettify_equation(equation):
     equation = equation.replace('√', 'sqrt')
     equation = equation.replace(',', '')
+    equation = catch_unclosed_parenthesis(equation)
 
     operations = "+-*/^!()"
 
@@ -65,7 +66,7 @@ def prettify_equation(equation):
             for i in range(start + 4, len(eq)):
                 if eq[i] in operations or eq[i] in '<':
                     eq = eq.replace(
-                        f'''sqrt{eq[start + 4: i]}{eq[i]}''', f'''√<span style=\"text-decoration: overline;\">{eq[start + 4:i]}{eq[i]}</span>''')
+                        f'''sqrt{eq[start + 4: i]}{eq[i]}''', f'''√<span style=\"text-decoration: overline;\">{eq[start + 4:i]}</span>{eq[i]}''')
                     return eq
 
                 if i == len(eq) - 1:
@@ -399,8 +400,7 @@ class MyWindow(QMainWindow):
                     get_resource_path('./icons/copy.svg')))
                 self.result_label.setText(
                     format_result(self.result, self.decimal_mode, self.textbox.text()))
-                self.setFixedHeight(EQUATION_INPUT_HEIGHT +
-                                    ANSWER_CONTAINER_HEIGHT + PADDING * 2 + 1)
+                self.setFixedHeight(HEIGHT + 1)
                 self.b1.show()
                 self.ans.show()
                 self.cvt_btn.show()
