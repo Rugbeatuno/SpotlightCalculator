@@ -4,6 +4,12 @@ import pyqtgraph as pg
 import numpy as np
 from calc import evaluate_expression, format_equation, conversions
 import time
+import os
+
+
+pg.setConfigOptions(useOpenGL=True)
+os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
+pg.setConfigOptions(antialias=True)
 
 # Initialize the application
 app = QApplication(sys.argv)
@@ -17,36 +23,37 @@ win.setWindowTitle("PyQtGraph Cartesian Plane with Tick Marks")
 # Add a plot with equal scaling for X and Y axes
 plot = win.addPlot(title="Click to Select a Point")
 plot.setAspectLocked(lock=True)  # Lock aspect ratio to 1:1
-plot.showGrid(x=True, y=True)    # Enable the grid
+plot.showGrid(x=True, y=True, alpha=0.2)    # Enable the grid
 
 # Set a range for the Cartesian plane
 plot.setXRange(-10, 10)
 plot.setYRange(-10, 10)
 
+gray = (128, 128, 128)
 # Add the X and Y axes intersecting at the origin
-plot.addLine(x=0, pen=pg.mkPen('k'))  # Y-axis
-plot.addLine(y=0, pen=pg.mkPen('k'))  # X-axis
+plot.addLine(x=0, pen=pg.mkPen(color=gray))  # Y-axis
+plot.addLine(y=0, pen=pg.mkPen(color=gray))  # X-axis
 
 # Add tick marks directly on the axes
 tick_length = 0.2
-tick_pen = pg.mkPen('k', width=2)
+tick_pen = pg.mkPen(color=gray, width=2)
 
 # Generate tick positions and draw them on the graph
-for i in range(-10, 11):  # X-axis ticks
-    if i != 0:  # Skip the origin
-        plot.addItem(pg.InfiniteLine(pos=(i, 0), angle=90, pen=tick_pen))
-for i in range(-10, 11):  # Y-axis ticks
-    if i != 0:  # Skip the origin
-        plot.addItem(pg.InfiniteLine(pos=(0, i), angle=0, pen=tick_pen))
+# for i in range(-10, 11):  # X-axis ticks
+#     if i != 0:  # Skip the origin
+#         plot.addItem(pg.InfiniteLine(pos=(i, 0), angle=90, pen=tick_pen))
+# for i in range(-10, 11):  # Y-axis ticks
+#     if i != 0:  # Skip the origin
+#         plot.addItem(pg.InfiniteLine(pos=(0, i), angle=0, pen=tick_pen))
 
 
-scatter = pg.ScatterPlotItem(size=10, brush='b')
-plot.addItem(scatter)
+# scatter = pg.ScatterPlotItem(size=10, brush='b')
+# plot.addItem(scatter)
 
 
 def calculate_points(plot, equation):
     s = time.perf_counter()
-    resolution = 1000
+    resolution = 5000
     x_range, _ = plot.getViewBox().viewRange()
     x_points = np.linspace(x_range[0], x_range[1], resolution)
     str_eqution = format_equation(equation, variables={'x': 'x'})
@@ -60,10 +67,10 @@ def calculate_points(plot, equation):
 
     print(time.perf_counter() - s)
     curve = plot.plot(x_points, y_points, pen=pg.mkPen(
-        color=(105, 174, 196), width=3), name="Sine Wave")
+        color=(105, 174, 196), width=2), name="Sine Wave")
 
 
-calculate_points(plot, '10x')
+calculate_points(plot, 'x**2')
 
 
 def on_mouse_click(event):
