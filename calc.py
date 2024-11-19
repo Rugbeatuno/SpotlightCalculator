@@ -1,4 +1,5 @@
 import math
+import time
 
 digits = '0123456789'
 operations = '()+-/*'
@@ -261,6 +262,7 @@ def evaluate_expression(expression, variables=None):
 
     # print(expression)
     result = ''
+
     expression = format_equation(expression, variables)
 
     # print(expression)
