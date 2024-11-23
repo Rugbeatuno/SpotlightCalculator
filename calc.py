@@ -1,5 +1,6 @@
 import math
 import time
+import numpy as np
 
 digits = '0123456789'
 operations = '()+-/*'
@@ -8,34 +9,43 @@ trig_functions = ['sin', 'cos', 'tan', 'arcsin',
 
 
 def cot(x):
-    denom = rounded_with_ellipsis(math.tan(x))
-    return "Undefined" if denom == 0 else 1 / denom
+    denom = rounded_with_ellipsis(np.tan(x))
+    result = np.full_like(denom, "Undefined", dtype=object)
+    valid_mask = denom != 0  # Only calculate where denom is not zero
+    result[valid_mask] = 1 / denom[valid_mask]
+    return result
 
 
 def sec(x):
-    denom = rounded_with_ellipsis(math.cos(x))
-    return "Undefined" if math.isclose(denom, 0) else 1 / denom
+    denom = rounded_with_ellipsis(np.cos(x))
+    result = np.full_like(denom, "Undefined", dtype=object)
+    valid_mask = ~np.isclose(denom, 0)
+    result[valid_mask] = 1 / denom[valid_mask]
+    return result
 
 
 def csc(x):
-    denom = rounded_with_ellipsis(math.sin(x))
-    return "Undefined" if math.isclose(denom, 0) else 1 / denom
+    denom = rounded_with_ellipsis(np.sin(x))
+    result = np.full_like(denom, "Undefined", dtype=object)
+    valid_mask = ~np.isclose(denom, 0)
+    result[valid_mask] = 1 / denom[valid_mask]
+    return result
 
 
 conversions = {
-    "sin": math.sin,
-    "cos": math.cos,
-    "tan": math.tan,
+    "sin": np.sin,
+    "cos": np.cos,
+    "tan": np.tan,
     "csc": csc,
     "sec": sec,
     "cot": cot,
-    "arcsin": math.asin,
-    "arccos": math.acos,
-    "arctan": math.atan,
-    "log": math.log10,
-    "ln": math.log,
-    "log2": math.log2,
-    "sqrt": math.sqrt,
+    "arcsin": np.arcsin,
+    "arccos": np.arccos,
+    "arctan": np.arctan,
+    "log": np.log10,
+    "ln": np.log,
+    "log2": np.log2,
+    "sqrt": np.sqrt,
     # "pi": math.pi,
     # "e": math.e,
     # '!': math.factorial
@@ -72,7 +82,7 @@ def cvt_factorial(expression):
                         if p_count == 0:
                             inner_express = express[j:i]
                             value = evaluate_expression(inner_express)
-                            factorialed = math.factorial(int(value))
+                            factorialed = np.math.factorial(int(value))
                             express = express[:j] + \
                                 f'({factorialed})' + express[i+1:]
                             return express
@@ -81,7 +91,7 @@ def cvt_factorial(expression):
                         if express[j] in operations or j == 0:
                             inner_express = express[j +
                                                     1:i] if j != 0 else express[0:i]
-                            factorialed = math.factorial(int(inner_express))
+                            factorialed = np.math.factorial(int(inner_express))
                             express = express[:j+1] + \
                                 f'({factorialed})' + express[i+1:] if j != 0 else express[:j] + \
                                 f'({factorialed})' + express[i+1:]
@@ -201,18 +211,23 @@ def cvt_variables(expression, variables):
 
 
 def rounded_with_ellipsis(number, tolerance=1e-12):
-    if isinstance(number, bool) or isinstance(number, str):
+    if isinstance(number, (bool, str)):
         return number
 
     # If the number is within the tolerance of a nearby integer, round to that integer
-    if abs(number - round(number)) < tolerance:
-        return round(number)
+    if abs(number - np.round(number)) < tolerance:
+        return np.round(number)
 
-    for target in [0.5, math.sqrt(3), 0.125, 0.250, 0.750]:
+    # Check against specific target values
+    # 1.7320508076 is sqrt(3)
+    for target in [0.5, 1.7320508076, 0.125, 0.250, 0.750]:
         if abs(number - target) < tolerance:
             return target
 
     return number
+
+
+rounded_with_ellipsis = np.vectorize(rounded_with_ellipsis)
 
 
 def cvt_cleanup(expression):
@@ -259,11 +274,13 @@ def format_equation(expression, variables=None):
 
 
 def evaluate_expression(expression, variables=None):
+    p = time.perf_counter()
 
     # print(expression)
     result = ''
 
     expression = format_equation(expression, variables)
+    print(time.perf_counter() - p, 'calc')
 
     # print(expression)
     result = eval(expression, conversions)

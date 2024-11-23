@@ -5,7 +5,7 @@ import numpy as np
 from calc import evaluate_expression, format_equation, conversions
 import time
 import os
-
+import math
 
 pg.setConfigOptions(useOpenGL=True)
 os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
@@ -53,6 +53,20 @@ curves = []
 # scatter = pg.ScatterPlotItem(size=10, brush='b')
 # plot.addItem(scatter)
 
+def in_range(lower, upper, num):
+    return lower < num < upper
+
+
+computed_y = {}
+
+
+def calc_resolution(lower, upper):
+    extent = upper - lower
+    if extent < 20:
+        return 500
+
+    return int(extent * 20)
+
 
 def calculate_points(plot, equation):
     # the goal is to always have EX: 1000 points of the curve displayed within the window
@@ -63,73 +77,101 @@ def calculate_points(plot, equation):
     for c in curves:
         plot.removeItem(c)
 
-    s = time.perf_counter()
-    resolution = 1000
     x_range, y_range = plot.getViewBox().viewRange()
+    resolution = calc_resolution(y_range[0], y_range[1])
+    print('res', resolution)
 
     x_range_points = np.linspace(x_range[0], x_range[1], 100)
     x_lower = x_range[0]
     x_upper = x_range[1]
 
-    def find_bound(start, end):
-        mid = (start + end) / 2
-        if y_range[0] <= evaluate_expression(equation, variables={'x': mid}) <= y_range[1]:
-            return find_bound(start, mid)
-        else:
-            return find_bound(mid, end)
-
     expression = format_equation(equation)
+    conversions['x'] = x_range_points
+    res = eval(expression, conversions)
 
-    p = time.perf_counter()
-    for i in range(1, len(x_range_points)):
-        if y_range[0] <= eval(expression.replace('x', f'({x_range_points[i]})'), conversions) <= y_range[1]:
-            x_lower = x_range_points[i - 1]
+    for index in range(1, len(res)):
+        if in_range(y_range[0], y_range[1], res[index]):
+            x_lower = x_range_points[index - 1]
             break
-    for i in range(len(x_range_points) - 2, -1, -1):
-        if y_range[0] <= eval(expression.replace('x', f'({x_range_points[i]})'), conversions) <= y_range[1]:
-            x_upper = x_range_points[i + 1]
+    for index in range(len(res) - 2, -1, -1):
+        if in_range(y_range[0], y_range[1], res[index]):
+            x_upper = x_range_points[index + 1]
             break
+
     x_points = np.linspace(x_lower, x_upper, resolution)
+    s = time.perf_counter()
+    conversions['x'] = x_points
+    results = eval(expression, conversions)
+    points = list(zip(x_points, results))
+    print(time.perf_counter() - s)
 
-    y_points = []
-    for x in x_points:
-        expression_with_var = expression.replace('x', f'({x})')
-        y_points.append(eval(expression_with_var, conversions))
+    # points = []
+    # # this pass computes one additional point if the function is going off the screen
+    # # so that it looks like it continnues off the graph
+    # # However, it doesn't catch the scenario where graph is coming from off the graph
+    # for x in x_points:
+    #     if x in computed_y:
+    #         y = computed_y[x]
+    #     else:
+    #         y = eval(expression.replace('x', f'({x})'), conversions)
+    #         computed_y[x] = y
 
-    print(time.perf_counter() - p, 'calc')
-    points = np.array(list(zip(x_points, y_points)))
-    for (x, y) in points:
-        if y > y_range[1]:
-            print(x)
-    # # Condition: Points within the specified range
-    # condition = (points[:, 1] > y_range[0]) & (points[:, 1] < y_range[1])
+    #     y_visible = in_range(y_range[0], y_range[1], y)
+    #     if y_visible:
+    #         points.append((x, y))
+    #     elif points:
+    #         last_point_y = points[-1][1]
+    #         if in_range(y_range[0], y_range[1], last_point_y):
+    #             points.append((x, y))
 
-    # # Find indices where the condition is False (splitting points)
-    # split_indices = np.where(~condition)[0]
+    #     if not y_visible:
+    #         next_y = eval(expression.replace(
+    #             'x', f'({x + expected_x_delta})'), conversions)
+    #         computed_y[x + expected_x_delta] = next_y
+    #         if in_range(y_range[0], y_range[1], next_y):
+    #             points.append((x, y))
 
-    # # Adjust split_indices to include 1 index before and after
-    # expanded_indices = set()
-    # for idx in split_indices:
-    #     expanded_indices.add(idx - 1)  # Include 1 index before
-    #     expanded_indices.add(idx)     # Include the original index
-    #     expanded_indices.add(idx + 1)  # Include 1 index after
+    # print(time.perf_counter() - p, 'full calc')
+    # print(len(points))
 
-    # # Ensure indices are within bounds
-    # expanded_indices = sorted(
-    #     idx for idx in expanded_indices if 0 <= idx < len(points))
+    # for any points_y 2x the viewport just set it to 2x the viewport
+    for index, point in enumerate(points):
+        view_range = y_range[1] - y_range[0]
+        if point[1] >= y_range[1] + view_range:
+            points[index] = (point[0], y_range[1] + view_range)
+        if point[1] <= y_range[0] - view_range:
+            points[index] = (point[0], y_range[1] - view_range)
 
-    # # Split points into segments based on the adjusted indices
-    # segments = np.split(points, expanded_indices)
+    point_segments = [[]]
+    index = 0
+    points = list(set(points))
+    points = sorted(points, key=lambda x: x[0])
+    # for i in points:
+    #     print(i)
+    for i in range(len(points) - 1):
+        if not in_range(y_range[0], y_range[1], points[i][1]) and not in_range(y_range[0], y_range[1], points[i + 1][1]):
+            point_segments[index].append(points[i])
+            point_segments.append([])
+            index += 1
+        else:
+            point_segments[index].append(points[i])
 
-    # for segment in segments:
-    #     if len(segment) == 1:
-    #         continue
-    #     x_segment = segment[:, 0]
-    #     y_segment = segment[:, 1]
-    curves.append(
-        plot.plot(x_points, y_points, pen=pg.mkPen(
-            color=(105, 174, 196), width=3))
-    )
+    s = time.perf_counter()
+    print(f'segments: {len(point_segments)}')
+    for p in point_segments:
+        if len(p) <= 1:
+            continue
+        print(len(p))
+
+        x_points, y_points = zip(*p)  # Unzip x and y values
+
+        f = time.perf_counter()
+        curves.append(
+            plot.plot(x_points, y_points, pen=pg.mkPen(
+                color=(105, 174, 196), width=3))
+        )
+        print(time.perf_counter() - f, 'plot')
+    print(time.perf_counter() - s, 'fdsa')
 
 
 def on_mouse_click(event):
@@ -151,6 +193,7 @@ def on_mouse_click(event):
 
 
 def viewbox_changed():
+    # calculate_points(plot, '(x+2)^3*(x-1)')
     calculate_points(plot, 'cscx')
     # calculate_points(plot, 'x^2')
     # calculate_points(plot, '10sin(x)/x')
@@ -159,6 +202,7 @@ def viewbox_changed():
 # Connect the click event
 plot.scene().sigMouseClicked.connect(on_mouse_click)
 vb.sigRangeChanged.connect(viewbox_changed)
+calculate_points(plot, 'cscx')
 
 # Run the application
 if __name__ == "__main__":
