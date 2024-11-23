@@ -61,6 +61,7 @@ computed_y = {}
 
 
 def calc_resolution(lower, upper):
+    return 1600
     extent = upper - lower
     if extent < 20:
         return 500
@@ -105,35 +106,7 @@ def calculate_points(plot, equation):
     points = list(zip(x_points, results))
     print(time.perf_counter() - s)
 
-    # points = []
-    # # this pass computes one additional point if the function is going off the screen
-    # # so that it looks like it continnues off the graph
-    # # However, it doesn't catch the scenario where graph is coming from off the graph
-    # for x in x_points:
-    #     if x in computed_y:
-    #         y = computed_y[x]
-    #     else:
-    #         y = eval(expression.replace('x', f'({x})'), conversions)
-    #         computed_y[x] = y
-
-    #     y_visible = in_range(y_range[0], y_range[1], y)
-    #     if y_visible:
-    #         points.append((x, y))
-    #     elif points:
-    #         last_point_y = points[-1][1]
-    #         if in_range(y_range[0], y_range[1], last_point_y):
-    #             points.append((x, y))
-
-    #     if not y_visible:
-    #         next_y = eval(expression.replace(
-    #             'x', f'({x + expected_x_delta})'), conversions)
-    #         computed_y[x + expected_x_delta] = next_y
-    #         if in_range(y_range[0], y_range[1], next_y):
-    #             points.append((x, y))
-
-    # print(time.perf_counter() - p, 'full calc')
-    # print(len(points))
-
+   
     # for any points_y 2x the viewport just set it to 2x the viewport
     for index, point in enumerate(points):
         view_range = y_range[1] - y_range[0]
@@ -168,11 +141,83 @@ def calculate_points(plot, equation):
         f = time.perf_counter()
         curves.append(
             plot.plot(x_points, y_points, pen=pg.mkPen(
-                color=(105, 174, 196), width=3))
+                color=(105, 174, 196), width=2))
         )
         print(time.perf_counter() - f, 'plot')
     print(time.perf_counter() - s, 'fdsa')
 
+def graphing_engine(plot, equation):
+    global curves
+    for c in curves:
+        plot.removeItem(c)
+
+    # subdivide the plot into x subdivisions (100)
+    # the bounds of the subdivisions should overlap to reduce the number of computations
+    # calculate the slope between the 2 endpoints, the higher the slope the more points should be calculated
+    # the lower the slope, less steep the less aggressivly changing, draw fewer points, asymptotes should have a lot of points
+    subdivisions = 100
+    std_resolution = math.ceil(800 / subdivisions)
+    x_range, y_range = plot.getViewBox().viewRange()
+    x_range_points = np.linspace(x_range[0], x_range[1], subdivisions)
+    conversions['x'] = x_range_points
+    y_values = eval(equation, conversions)
+    slopes = np.diff(y_values) / np.diff(x_range_points)
+    slopes_pos = abs(slopes) + 2
+    slopes_int = slopes_pos.astype(int)
+    slopes_log = np.log(slopes_int)
+
+    # Generate dynamic points within each interval
+    x_dynamic = []
+
+    s = time.perf_counter()
+    for i in range(len(slopes_int)):
+        # Define start and end of the interval
+        x_start = x_range_points[i]
+        x_end = x_range_points[i + 1]
+        
+        # Determine the number of points based on slopes_int
+        num_points = max(int(slopes_log[i] * std_resolution), std_resolution)
+        x_dynamic.extend(np.linspace(x_start, x_end, num_points))
+
+    x_dynamic = np.array(x_dynamic)
+    conversions['x'] = x_dynamic
+    y_interval = eval(equation, conversions)
+    
+    # Filter out invalid entries (e.g., "undefined")
+    valid_mask = [str(y) != "Undefined" for y in y_interval]
+    x_interval_filtered = x_dynamic[valid_mask]
+    y_interval_filtered = y_interval[valid_mask]
+
+    print(time.perf_counter() - s)
+    s = time.perf_counter()
+    # Convert to NumPy arrays for further processing if needed
+    point_segments = [[]]
+    index = 0
+    points = list(zip(x_interval_filtered, y_interval_filtered))
+    points = sorted(points, key=lambda x: x[0])
+    for i in range(len(points) - 1):
+        if not in_range(y_range[0], y_range[1], points[i][1]) and not in_range(y_range[0], y_range[1], points[i + 1][1]):
+            point_segments[index].append(points[i])
+            point_segments.append([])
+            index += 1
+        else:
+            point_segments[index].append(points[i])
+
+    
+    for p in point_segments:
+        if len(p) <= 1:
+            continue
+
+        x_points, y_points = zip(*p)  # Unzip x and y values
+
+        f = time.perf_counter()
+        curves.append(
+            plot.plot(x_points, y_points, pen=pg.mkPen(
+                color=(105, 174, 196), width=2))
+        )
+    print(time.perf_counter() - s, 'plot')
+   
+   
 
 def on_mouse_click(event):
     if plot.sceneBoundingRect().contains(event.scenePos()):
@@ -193,8 +238,9 @@ def on_mouse_click(event):
 
 
 def viewbox_changed():
+    graphing_engine(plot, format_equation('cscx'))
     # calculate_points(plot, '(x+2)^3*(x-1)')
-    calculate_points(plot, 'cscx')
+    # calculate_points(plot, 'cscx')
     # calculate_points(plot, 'x^2')
     # calculate_points(plot, '10sin(x)/x')
 
@@ -202,7 +248,8 @@ def viewbox_changed():
 # Connect the click event
 plot.scene().sigMouseClicked.connect(on_mouse_click)
 vb.sigRangeChanged.connect(viewbox_changed)
-calculate_points(plot, 'cscx')
+# calculate_points(plot, 'cscx')
+
 
 # Run the application
 if __name__ == "__main__":
