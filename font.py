@@ -106,7 +106,6 @@ def calculate_points(plot, equation):
     points = list(zip(x_points, results))
     print(time.perf_counter() - s)
 
-   
     # for any points_y 2x the viewport just set it to 2x the viewport
     for index, point in enumerate(points):
         view_range = y_range[1] - y_range[0]
@@ -146,6 +145,7 @@ def calculate_points(plot, equation):
         print(time.perf_counter() - f, 'plot')
     print(time.perf_counter() - s, 'fdsa')
 
+
 def graphing_engine(plot, equation):
     global curves
     for c in curves:
@@ -174,7 +174,7 @@ def graphing_engine(plot, equation):
         # Define start and end of the interval
         x_start = x_range_points[i]
         x_end = x_range_points[i + 1]
-        
+
         # Determine the number of points based on slopes_int
         num_points = max(int(slopes_log[i] * std_resolution), std_resolution)
         x_dynamic.extend(np.linspace(x_start, x_end, num_points))
@@ -182,7 +182,7 @@ def graphing_engine(plot, equation):
     x_dynamic = np.array(x_dynamic)
     conversions['x'] = x_dynamic
     y_interval = eval(equation, conversions)
-    
+
     # Filter out invalid entries (e.g., "undefined")
     valid_mask = [str(y) != "Undefined" for y in y_interval]
     x_interval_filtered = x_dynamic[valid_mask]
@@ -203,7 +203,6 @@ def graphing_engine(plot, equation):
         else:
             point_segments[index].append(points[i])
 
-    
     for p in point_segments:
         if len(p) <= 1:
             continue
@@ -216,8 +215,7 @@ def graphing_engine(plot, equation):
                 color=(105, 174, 196), width=2))
         )
     print(time.perf_counter() - s, 'plot')
-   
-   
+
 
 def on_mouse_click(event):
     if plot.sceneBoundingRect().contains(event.scenePos()):

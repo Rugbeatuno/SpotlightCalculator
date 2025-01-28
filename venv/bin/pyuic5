@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Users/newuser/Desktop/Random Coding Crap/SpotlightCalculator/SpotlightCalculator/venv/bin/python3" "$0" "$@"
+'''exec' "/Users/newuser/Desktop/Random Coding Crap/SpotlightCalculator/venv/bin/python3" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re
