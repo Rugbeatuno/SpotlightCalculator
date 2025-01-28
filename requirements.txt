@@ -3,3 +3,4 @@ pygetwindow
 keyboard
 pyperclip
 numpy
+pyqtgraph
